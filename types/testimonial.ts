@@ -1,6 +1,5 @@
 /**
  * Testimonial type definitions
- * Supports dynamic testimonials with company logos
  */
 
 export interface Testimonial {
@@ -9,7 +8,6 @@ export interface Testimonial {
   name: string; // person name
   title: string; // person's job title
   img?: string; // person's image URL (optional)
-  companyLogo?: string; // company logo URL (optional, deprecated)
   order: number; // display order
   isActive: boolean; // whether to show on frontend
   createdAt: Date;
@@ -21,7 +19,6 @@ export interface CreateTestimonialDTO {
   name: string;
   title: string;
   img?: string;
-  companyLogo?: string; // optional, deprecated
   order?: number;
   isActive?: boolean;
 }
@@ -32,7 +29,6 @@ export interface UpdateTestimonialDTO {
   name?: string;
   title?: string;
   img?: string;
-  companyLogo?: string;
   order?: number;
   isActive?: boolean;
 }
@@ -134,96 +130,9 @@ export function firestoreToTestimonial(doc: any): Testimonial {
     name: data.name || "",
     title: data.title || "",
     img: data.img || "",
-    companyLogo: data.companyLogo || "",
     order: data.order || 0,
     isActive: data.isActive ?? true,
     createdAt: data.createdAt?.toDate() || new Date(),
     updatedAt: data.updatedAt?.toDate() || new Date(),
   };
 }
-
-/**
- * Company logo library - popular tech companies
- */
-export const companyLogos = [
-  {
-    name: "Cloudinary",
-    url: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/cloudinary/cloudinary-original.svg",
-  },
-  {
-    name: "Appwrite",
-    url: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/appwrite/appwrite-original.svg",
-  },
-  {
-    name: "Hostinger",
-    url: "/companies/hostinger.svg",
-  },
-  {
-    name: "Stream",
-    url: "/companies/stream.svg",
-  },
-  {
-    name: "Docker",
-    url: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/docker/docker-original.svg",
-  },
-  {
-    name: "GitHub",
-    url: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/github/github-original.svg",
-  },
-  {
-    name: "Google",
-    url: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/google/google-original.svg",
-  },
-  {
-    name: "Microsoft",
-    url: "/companies/microsoft.svg",
-  },
-  {
-    name: "Amazon",
-    url: "/companies/amazon.svg",
-  },
-  {
-    name: "Meta",
-    url: "/companies/meta.svg",
-  },
-  {
-    name: "Netflix",
-    url: "/companies/netflix.svg",
-  },
-  {
-    name: "Stripe",
-    url: "/companies/stripe.svg",
-  },
-  {
-    name: "Shopify",
-    url: "/companies/shopify.svg",
-  },
-  {
-    name: "Vercel",
-    url: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/vercel/vercel-original.svg",
-  },
-  {
-    name: "MongoDB",
-    url: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/mongodb/mongodb-original.svg",
-  },
-  {
-    name: "PostgreSQL",
-    url: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg",
-  },
-  {
-    name: "Redis",
-    url: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/redis/redis-original.svg",
-  },
-  {
-    name: "AWS",
-    url: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/amazonwebservices/amazonwebservices-original-wordmark.svg",
-  },
-  {
-    name: "Azure",
-    url: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/azure/azure-original.svg",
-  },
-  {
-    name: "Firebase",
-    url: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/firebase/firebase-original.svg",
-  },
-];

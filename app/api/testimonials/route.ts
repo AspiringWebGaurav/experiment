@@ -120,7 +120,6 @@ export async function POST(request: NextRequest) {
         name: testimonialData.name.trim(),
         title: testimonialData.title.trim(),
         img: testimonialData.img?.trim() || "",
-        companyLogo: testimonialData.companyLogo.trim(),
         order,
         isActive: testimonialData.isActive ?? true,
         createdAt: now,
@@ -214,8 +213,6 @@ export async function PUT(request: NextRequest) {
     if (body.name !== undefined) updateData.name = body.name.trim();
     if (body.title !== undefined) updateData.title = body.title.trim();
     if (body.img !== undefined) updateData.img = body.img.trim();
-    if (body.companyLogo !== undefined)
-      updateData.companyLogo = body.companyLogo.trim();
     if (body.order !== undefined) updateData.order = body.order;
     if (body.isActive !== undefined) updateData.isActive = body.isActive;
 

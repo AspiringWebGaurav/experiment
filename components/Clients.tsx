@@ -6,7 +6,6 @@ import { Testimonial } from "@/types/testimonial";
 
 const Clients = () => {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
-  const [companyLogos, setCompanyLogos] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,10 +33,6 @@ const Clients = () => {
           .sort((a: Testimonial, b: Testimonial) => a.order - b.order);
 
         setTestimonials(activeTestimonials);
-
-        // Extract unique company logos
-        const logos = activeTestimonials.map((t: Testimonial) => t.companyLogo);
-        setCompanyLogos(logos);
       } catch (err) {
         console.error("Error fetching testimonials:", err);
         setError(
@@ -126,24 +121,6 @@ const Clients = () => {
             speed="slow"
           />
         </div>
-
-        {/* Company Logos */}
-        {companyLogos.length > 0 && (
-          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-16 max-lg:mt-10">
-            {companyLogos.map((logo, index) => (
-              <div
-                key={index}
-                className="flex md:max-w-60 max-w-32 gap-2 items-center justify-center"
-              >
-                <img
-                  src={logo}
-                  alt={`Company ${index + 1}`}
-                  className="md:w-24 w-20 h-auto object-contain"
-                />
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </section>
   );

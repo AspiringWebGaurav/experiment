@@ -15,12 +15,7 @@ export async function POST(request: NextRequest) {
     const folder = (formData.get("folder") as string) || "images";
 
     // Validate folder - allow testimonials subfolder paths
-    const validFolders = [
-      "images",
-      "icons",
-      "testimonials/avatars",
-      "testimonials/logos",
-    ];
+    const validFolders = ["images", "icons", "testimonials/avatars"];
     if (!validFolders.includes(folder)) {
       return NextResponse.json(
         { success: false, error: "Invalid folder specified" },

@@ -12,7 +12,6 @@ import {
   MAX_NAME_LENGTH,
   MIN_TITLE_LENGTH,
   MAX_TITLE_LENGTH,
-  companyLogos,
 } from "@/types/testimonial";
 import {
   Plus,
@@ -285,7 +284,6 @@ export default function TestimonialManager() {
         name: `Client ${i + 1}`,
         title: `Position at Company ${i + 1}`,
         img: "",
-        companyLogo: companyLogos[i % companyLogos.length].url,
         order: testimonials.length + i + 1,
         isActive: true,
       });
