@@ -1,13 +1,20 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { LogOut, User as UserIcon, Settings, FileText } from "lucide-react";
+import {
+  LogOut,
+  User as UserIcon,
+  Settings,
+  FileText,
+  Trash2,
+} from "lucide-react";
 import BrandLogo from "./BrandLogo";
 import NotificationBell from "./NotificationBell";
 import { signOut } from "@/lib/auth";
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useRecycleBin } from "@/contexts/RecycleBinContext";
 
 interface NavbarProps {
   showNotifications?: boolean;
@@ -23,6 +30,7 @@ export default function Navbar({
   const [user, setUser] = useState<any>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { stats } = useRecycleBin();
 
   // Update clock every second
   useEffect(() => {
@@ -110,16 +118,33 @@ export default function Navbar({
             </div>
           </div>
 
-          {/* Right Section - Notifications and Profile */}
+          {/* Right Section - Notifications, Recycle Bin, and Profile */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {showNotifications && user && <NotificationBell />}
+
+            {/* Recycle Bin Button */}
+            {user && (
+              <button
+                onClick={() => router.push("/admin/recycle-bin")}
+                className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label="Recycle Bin"
+                title="Recycle Bin"
+              >
+                <Trash2 className="w-5 h-5 text-gray-600" />
+                {stats.total > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                    {stats.total > 9 ? "9+" : stats.total}
+                  </span>
+                )}
+              </button>
+            )}
 
             {user && (
               <div className="relative" ref={profileMenuRef}>
                 {/* Profile Picture */}
                 <button
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden ring-2 ring-white/10 hover:ring-white/30 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#6EE7B7]"
+                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden ring-2 ring-gray-200 hover:ring-indigo-400 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 shrink-0"
                   aria-label="Profile menu"
                 >
                   {user.photoURL ? (
@@ -127,12 +152,25 @@ export default function Navbar({
                       src={user.photoURL}
                       alt={user.displayName || "User"}
                       className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = "none";
+                        if (target.nextElementSibling) {
+                          (
+                            target.nextElementSibling as HTMLElement
+                          ).style.display = "flex";
+                        }
+                      }}
                     />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
-                      <UserIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                    </div>
-                  )}
+                  ) : null}
+                  <div
+                    className={`w-full h-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center ${
+                      user.photoURL ? "hidden" : ""
+                    }`}
+                  >
+                    <UserIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                  </div>
                 </button>
 
                 {/* Profile Dropdown Menu */}
@@ -141,17 +179,32 @@ export default function Navbar({
                     {/* User Info */}
                     <div className="p-4 bg-gradient-to-br from-indigo-50 to-violet-50 border-b border-gray-200">
                       <div className="flex items-center gap-3">
-                        {user.photoURL ? (
-                          <img
-                            src={user.photoURL}
-                            alt={user.displayName || "User"}
-                            className="w-10 h-10 rounded-full object-cover ring-2 ring-white"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center ring-2 ring-white">
+                        <div className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-white shrink-0">
+                          {user.photoURL ? (
+                            <img
+                              src={user.photoURL}
+                              alt={user.displayName || "User"}
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = "none";
+                                if (target.nextElementSibling) {
+                                  (
+                                    target.nextElementSibling as HTMLElement
+                                  ).style.display = "flex";
+                                }
+                              }}
+                            />
+                          ) : null}
+                          <div
+                            className={`absolute inset-0 bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center ${
+                              user.photoURL ? "hidden" : ""
+                            }`}
+                          >
                             <UserIcon className="w-5 h-5 text-white" />
                           </div>
-                        )}
+                        </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-gray-900 truncate">
                             {user.displayName || "User"}

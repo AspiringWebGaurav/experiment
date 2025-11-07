@@ -1,11 +1,18 @@
+"use client";
+
 import { FaLocationArrow } from "react-icons/fa6";
+import Image from "next/image";
 
 import { socialMedia } from "@/data";
 import MagicButton from "./ui/MagicButton";
 
 const Footer = () => {
+  const handleAdminClick = () => {
+    window.open("/admin/dashboard", "_blank");
+  };
+
   return (
-    <footer className="w-full pt-20 pb-10" id="contact">
+    <footer className="w-full pt-20 pb-0" id="contact">
       {/* background grid */}
 
       <div className="flex flex-col items-center">
@@ -25,18 +32,33 @@ const Footer = () => {
           />
         </a>
       </div>
-      <div className="flex mt-16 md:flex-row flex-col justify-between items-center">
-        <p className="md:text-base text-sm md:font-normal font-light">
+      <div className="flex mt-16 md:flex-row flex-col justify-between items-center py-6">
+        <p className="md:text-base text-sm md:font-normal font-light flex items-center">
           Copyright © 2025 Gaurav Patil
+          <span className="mx-2 text-white-200">•</span>
+          <button
+            onClick={handleAdminClick}
+            className="text-purple hover:text-purple/80 transition-colors font-normal"
+            aria-label="Open Admin Panel"
+            title="Open Admin Panel"
+          >
+            admin?
+          </button>
         </p>
 
-        <div className="flex items-center md:gap-3 gap-6 lg:mr-14">
+        <div className="flex items-center md:gap-3 gap-6 lg:mr-14 mt-4 md:mt-0">
           {socialMedia.map((info) => (
             <div
               key={info.id}
-              className="w-10 h-10 cursor-pointer flex justify-center items-center backdrop-filter backdrop-blur-lg saturate-180 bg-opacity-75 bg-black-200 rounded-lg border border-black-300"
+              className="w-10 h-10 cursor-pointer flex justify-center items-center backdrop-filter backdrop-blur-lg saturate-180 bg-opacity-75 bg-black-200 rounded-lg border border-black-300 hover:bg-opacity-100 hover:border-purple/50 transition-all"
             >
-              <img src={info.img} alt="icons" width={20} height={20} />
+              <Image
+                src={info.img}
+                alt="social media icon"
+                width={20}
+                height={20}
+                loading="lazy"
+              />
             </div>
           ))}
         </div>

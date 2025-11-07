@@ -20,7 +20,11 @@ interface RecycleBinContextType {
   items: RecycleBinItem[];
   loading: boolean;
   stats: RecycleBinStats;
-  moveToRecycleBin: (source: RecycleBinItemSource, data: any, originalId: string) => Promise<void>;
+  moveToRecycleBin: (
+    source: RecycleBinItemSource,
+    data: any,
+    originalId: string
+  ) => Promise<void>;
   restoreItem: (recycleBinId: string) => Promise<any>;
   permanentlyDelete: (recycleBinId: string) => Promise<void>;
   permanentlyDeleteAll: () => Promise<void>;
@@ -29,7 +33,9 @@ interface RecycleBinContextType {
   refreshItems: () => void;
 }
 
-const RecycleBinContext = createContext<RecycleBinContextType | undefined>(undefined);
+const RecycleBinContext = createContext<RecycleBinContextType | undefined>(
+  undefined
+);
 
 export const useRecycleBin = () => {
   const context = useContext(RecycleBinContext);
@@ -43,8 +49,12 @@ interface RecycleBinProviderProps {
   children: ReactNode;
 }
 
-export const RecycleBinProvider: React.FC<RecycleBinProviderProps> = ({ children }) => {
-  const [currentUserId, setCurrentUserId] = useState<string | null>("portfolio-user");
+export const RecycleBinProvider: React.FC<RecycleBinProviderProps> = ({
+  children,
+}) => {
+  const [currentUserId, setCurrentUserId] = useState<string | null>(
+    "portfolio-user"
+  );
   const [items, setItems] = useState<RecycleBinItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<RecycleBinStats>({
@@ -53,6 +63,7 @@ export const RecycleBinProvider: React.FC<RecycleBinProviderProps> = ({ children
     timesheets: 0,
     timeLogs: 0,
     notifications: 0,
+    projects: 0,
     expiringWithin24Hours: 0,
   });
 
@@ -92,7 +103,10 @@ export const RecycleBinProvider: React.FC<RecycleBinProviderProps> = ({ children
     (updatedItems: RecycleBinItem[]) => {
       if (!currentUserId) return;
 
-      localStorage.setItem(`recycleBin_${currentUserId}`, JSON.stringify(updatedItems));
+      localStorage.setItem(
+        `recycleBin_${currentUserId}`,
+        JSON.stringify(updatedItems)
+      );
       setItems(updatedItems);
     },
     [currentUserId]
@@ -107,7 +121,9 @@ export const RecycleBinProvider: React.FC<RecycleBinProviderProps> = ({ children
       todos: items.filter((item) => item.source === "todo").length,
       timesheets: items.filter((item) => item.source === "timesheet").length,
       timeLogs: items.filter((item) => item.source === "time-tracker").length,
-      notifications: items.filter((item) => item.source === "notification").length,
+      notifications: items.filter((item) => item.source === "notification")
+        .length,
+      projects: items.filter((item) => item.source === "project").length,
       expiringWithin24Hours: items.filter(
         (item) => new Date(item.expiryDate).getTime() <= oneDayFromNow
       ).length,
@@ -117,7 +133,11 @@ export const RecycleBinProvider: React.FC<RecycleBinProviderProps> = ({ children
   };
 
   const moveToRecycleBin = useCallback(
-    async (source: RecycleBinItemSource, data: any, originalId: string): Promise<void> => {
+    async (
+      source: RecycleBinItemSource,
+      data: any,
+      originalId: string
+    ): Promise<void> => {
       if (!currentUserId) {
         toast.error("User not authenticated");
         return;
@@ -218,7 +238,9 @@ export const RecycleBinProvider: React.FC<RecycleBinProviderProps> = ({ children
         const updatedItems = items.map((item) => {
           if (item.id === recycleBinId) {
             const now = new Date();
-            const newExpiryDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+            const newExpiryDate = new Date(
+              now.getTime() + days * 24 * 60 * 60 * 1000
+            );
             return {
               ...item,
               expiryDate: newExpiryDate.toISOString(),
@@ -242,15 +264,23 @@ export const RecycleBinProvider: React.FC<RecycleBinProviderProps> = ({ children
     if (!currentUserId) return;
 
     const now = new Date().getTime();
-    const expiredItems = items.filter((item) => new Date(item.expiryDate).getTime() <= now);
+    const expiredItems = items.filter(
+      (item) => new Date(item.expiryDate).getTime() <= now
+    );
 
     if (expiredItems.length > 0) {
-      const updatedItems = items.filter((item) => new Date(item.expiryDate).getTime() > now);
+      const updatedItems = items.filter(
+        (item) => new Date(item.expiryDate).getTime() > now
+      );
       saveItems(updatedItems);
 
-      toast.info(`${expiredItems.length} expired item(s) automatically deleted`, {
-        description: "Items in Recycle Bin are automatically removed after expiry.",
-      });
+      toast.info(
+        `${expiredItems.length} expired item(s) automatically deleted`,
+        {
+          description:
+            "Items in Recycle Bin are automatically removed after expiry.",
+        }
+      );
     }
   }, [currentUserId, items, saveItems]);
 
@@ -332,5 +362,9 @@ export const RecycleBinProvider: React.FC<RecycleBinProviderProps> = ({ children
     refreshItems,
   };
 
-  return <RecycleBinContext.Provider value={value}>{children}</RecycleBinContext.Provider>;
+  return (
+    <RecycleBinContext.Provider value={value}>
+      {children}
+    </RecycleBinContext.Provider>
+  );
 };

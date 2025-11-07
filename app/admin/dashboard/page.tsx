@@ -9,6 +9,7 @@ import HorizontalScrollPanel, {
   PanelOption,
 } from "@/components/admin/HorizontalScrollPanel";
 import HorizontalScrollPanelMobile from "@/components/admin/mobile/HorizontalScrollPanel";
+import ProjectManager from "@/components/admin/ProjectManager";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -84,33 +85,7 @@ export default function DashboardPage() {
       {/* Main Content - Scrollable Projects Section */}
       <main className="flex-1 overflow-y-auto bg-gray-50 scrollbar-hide">
         <div className="max-w-7xl mx-auto p-6">
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                {panelOptions.find((opt) => opt.id === activeSection)?.label ||
-                  "Projects"}
-              </h1>
-              <p className="text-gray-600">Manage your portfolio projects</p>
-            </div>
-
-            {/* Coming Soon Section */}
-            <div className="flex items-center justify-center min-h-[400px]">
-              <div className="text-center">
-                <div className="mb-6">
-                  <span className="text-8xl">🚀</span>
-                </div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-3">
-                  Coming Soon
-                </h2>
-                <p className="text-lg text-gray-600 mb-2">
-                  Project management features are under development
-                </p>
-                <p className="text-sm text-gray-500">
-                  Stay tuned for exciting updates!
-                </p>
-              </div>
-            </div>
-          </div>
+          <ProjectManager />
         </div>
       </main>
 
