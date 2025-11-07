@@ -18,10 +18,7 @@ export function setNotificationService(service: NotificationService) {
   notificationService = service;
 }
 
-export async function createAuthNotification(
-  type: "login" | "logout",
-  user: any
-) {
+export async function createAuthNotification(type: "login" | "logout", user: any) {
   if (!notificationService) return;
 
   const displayName = user?.displayName || user?.email || "User";
@@ -50,10 +47,7 @@ export async function createAuthNotification(
   }
 }
 
-export async function createTimesheetNotification(
-  action: "add" | "update" | "delete",
-  data?: any
-) {
+export async function createTimesheetNotification(action: "add" | "update" | "delete", data?: any) {
   if (!notificationService) return;
 
   const timestamp = new Date().toLocaleString("en-US", {
@@ -109,17 +103,11 @@ export async function createVersionNotification(
   if (action === "create") {
     title = "New Version Created";
     message = `Version ${versionNumber} created at ${timestamp}`;
-    notificationService.showToast(
-      "success",
-      `Version ${versionNumber} created`
-    );
+    notificationService.showToast("success", `Version ${versionNumber} created`);
   } else {
     title = "Version Updated";
     message = `Version ${versionNumber} updated at ${timestamp}`;
-    notificationService.showToast(
-      "success",
-      `Version ${versionNumber} updated`
-    );
+    notificationService.showToast("success", `Version ${versionNumber} updated`);
   }
 
   await notificationService.createNotification({
@@ -128,4 +116,23 @@ export async function createVersionNotification(
     message,
     data: { versionNumber },
   });
+}
+
+export async function createErrorNotification(error: string, context?: string) {
+  if (!notificationService) return;
+
+  const timestamp = new Date().toLocaleString("en-US", {
+    timeZone: "Asia/Kolkata",
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+
+  await notificationService.createNotification({
+    type: "error",
+    title: context ? `Error: ${context}` : "Error Occurred",
+    message: `${error} at ${timestamp}`,
+    data: { error, context },
+  });
+
+  notificationService.showToast("error", error, context);
 }

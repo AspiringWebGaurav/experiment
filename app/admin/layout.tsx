@@ -4,6 +4,7 @@ import "../globals.css";
 import ToasterProvider from "@/components/admin/ToasterProvider";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { LoadingProvider } from "@/contexts/LoadingContext";
+import { RecycleBinProvider } from "@/contexts/RecycleBinContext";
 import AppLoader from "@/components/admin/AppLoader";
 
 const geistSans = Geist({
@@ -35,9 +36,11 @@ export default function AdminLayout({
     >
       <LoadingProvider>
         <NotificationProvider>
-          <ToasterProvider />
-          <AppLoader />
-          {children}
+          <RecycleBinProvider>
+            <ToasterProvider />
+            <AppLoader />
+            {children}
+          </RecycleBinProvider>
         </NotificationProvider>
       </LoadingProvider>
     </div>

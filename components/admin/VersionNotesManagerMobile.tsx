@@ -1,9 +1,11 @@
 "use client";
+
 import React, { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, query, orderBy, limit, getDocs, Timestamp } from "firebase/firestore";
 import { toast } from "sonner";
 import { createVersionNotification, createErrorNotification } from "@/lib/notificationHelpers";
+import { X } from "lucide-react";
 
 interface VersionHistory {
   id: string;
@@ -18,35 +20,30 @@ const VERSION_SHORTCUTS = [
     label: "Patch",
     format: (current: string) => incrementVersion(current, "patch"),
     icon: "🔧",
-    desc: "Bug fixes",
   },
   {
     label: "Minor",
     format: (current: string) => incrementVersion(current, "minor"),
     icon: "✨",
-    desc: "New features",
   },
   {
     label: "Major",
     format: (current: string) => incrementVersion(current, "major"),
     icon: "🚀",
-    desc: "Breaking changes",
   },
 ];
 
 // Changelog shortcuts
 const CHANGELOG_SHORTCUTS = [
   "Added new feature",
-  "Fixed bug in",
+  "Fixed bug",
   "Updated",
-  "Improved performance",
-  "Enhanced UI/UX",
-  "Refactored code",
+  "Improved",
+  "Enhanced UI",
   "Security patch",
 ];
 
 function incrementVersion(current: string, type: "major" | "minor" | "patch"): string {
-  // Get the latest version from current or default to v0.0.0
   if (!current) current = "v0.0.0";
 
   const match = current.match(/v?(\d+)\.(\d+)\.(\d+)/);
@@ -68,7 +65,7 @@ function incrementVersion(current: string, type: "major" | "minor" | "patch"): s
   return `v${major}.${minor}.${patch}`;
 }
 
-export default function VersionNotesManager() {
+export default function VersionNotesManagerMobile() {
   const [version, setVersion] = useState("");
   const [changelogInput, setChangelogInput] = useState("");
   const [changelog, setChangelog] = useState<string[]>([]);
@@ -86,7 +83,7 @@ export default function VersionNotesManager() {
       const historyQuery = query(
         collection(db, "portfolioVersionHistory"),
         orderBy("createdAt", "desc"),
-        limit(100)
+        limit(50)
       );
       const historySnapshot = await getDocs(historyQuery);
       const historyData = historySnapshot.docs.map((docSnap) => ({
@@ -129,18 +126,20 @@ export default function VersionNotesManager() {
     return !version.trim() || changelog.length === 0 || isVersionExists(version.trim()) || saving;
   };
 
-  const saveVersion = async () => {
+  const handleSave = async () => {
     if (isSaveDisabled()) return;
     setSaving(true);
     try {
-      await addDoc(collection(db, "portfolioVersionHistory"), {
+      const newVersion = {
         version: version.trim(),
-        changelog: changelog,
+        changelog,
         createdAt: Timestamp.now(),
-      });
+      };
+      await addDoc(collection(db, "portfolioVersionHistory"), newVersion);
       await createVersionNotification("create", version.trim());
       setVersion("");
       setChangelog([]);
+      setChangelogInput("");
       await loadHistory(); // Reload to get fresh data
 
       // Trigger hard refresh after a short delay to show success message
@@ -149,7 +148,7 @@ export default function VersionNotesManager() {
       }, 1000);
     } catch (error) {
       console.error("Error:", error);
-      await createErrorNotification("Failed to save", "Version Notes");
+      await createErrorNotification("Failed to save version", "Version Notes");
     } finally {
       setSaving(false);
     }
@@ -159,11 +158,10 @@ export default function VersionNotesManager() {
     // Use latestVersion from state (synced with database)
     const newVersion = incrementVersion(latestVersion, type);
 
-    // Check if this version already exists
     if (!isVersionExists(newVersion)) {
       setVersion(newVersion);
     } else {
-      toast.error("This version already exists!");
+      toast.error("Version already exists!");
     }
   };
 
@@ -171,26 +169,18 @@ export default function VersionNotesManager() {
     setChangelogInput(text);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  const versionExists = version.trim() && isVersionExists(version.trim());
+  const versionExists = isVersionExists(version.trim());
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full overflow-hidden">
-      <div className="flex flex-col h-full overflow-hidden">
-        <h2 className="text-base font-bold text-gray-900 mb-3 shrink-0">Add New Version</h2>
-        <div className="flex-1 overflow-y-auto space-y-3 scrollbar-thin">
+    <div className="flex flex-col h-full w-full overflow-hidden">
+      <div className="shrink-0 w-full px-3 py-2 bg-white border-b border-gray-200">
+        <h2 className="text-sm font-semibold text-gray-900 mb-2">Add New Version</h2>
+        <div className="space-y-2">
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-2">Version Number *</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Version Number *</label>
 
             {/* Version Shortcuts */}
-            <div className="flex gap-1.5 mb-2">
+            <div className="flex gap-1.5 mb-1.5">
               {VERSION_SHORTCUTS.map((shortcut) => {
                 // Use latestVersion from state (synced with database)
                 const nextVersion = shortcut.format(latestVersion);
@@ -205,20 +195,14 @@ export default function VersionNotesManager() {
                       )
                     }
                     disabled={isDisabled}
-                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded text-xs font-medium transition-all ${
+                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all ${
                       isDisabled
-                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                        : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                        ? "bg-gray-200 text-gray-400 cursor-not-allowed opacity-50"
+                        : "bg-blue-100 text-blue-700 active:scale-95"
                     }`}
-                    title={
-                      isDisabled
-                        ? `${nextVersion} already exists`
-                        : `${shortcut.desc}: ${nextVersion}`
-                    }
                   >
-                    <span>{shortcut.icon}</span>
-                    <span>{shortcut.label}</span>
-                    <span className="text-xs opacity-70">{nextVersion}</span>
+                    <span className="text-xs">{shortcut.icon}</span>
+                    <span className="text-xs">{nextVersion}</span>
                   </button>
                 );
               })}
@@ -229,35 +213,38 @@ export default function VersionNotesManager() {
               value={version}
               onChange={(e) => setVersion(e.target.value)}
               placeholder="e.g., v1.0.0"
-              className={`w-full px-3 py-2 rounded border bg-white text-gray-900 focus:outline-none focus:ring-2 ${
-                versionExists
+              className={
+                "w-full px-2.5 py-1.5 text-sm rounded-md border bg-white text-gray-900 focus:outline-none focus:ring-1 " +
+                (versionExists
                   ? "border-red-500 focus:ring-red-500"
-                  : "border-gray-300 focus:ring-blue-500"
-              }`}
+                  : "border-gray-300 focus:ring-blue-500")
+              }
             />
             {versionExists && (
-              <p className="text-xs text-red-500 mt-1">⚠️ This version already exists</p>
+              <p className="text-xs text-red-600 font-medium mt-0.5 flex items-center gap-1">
+                <span>⚠️</span> Version exists
+              </p>
             )}
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-2">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
               Changelog Items *
             </label>
 
             {/* Changelog Shortcuts */}
-            <div className="flex flex-wrap gap-1 mb-2">
+            <div className="flex flex-wrap gap-1 mb-1.5">
               {CHANGELOG_SHORTCUTS.map((text, index) => (
                 <button
                   key={index}
                   onClick={() => handleChangelogShortcut(text)}
-                  className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-900 hover:bg-gray-200 transition-colors"
+                  className="px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-900 active:scale-95 transition-transform"
                 >
                   {text}
                 </button>
               ))}
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               <input
                 type="text"
                 value={changelogInput}
@@ -268,81 +255,77 @@ export default function VersionNotesManager() {
                     addChangelogItem();
                   }
                 }}
-                placeholder="Type and press Enter"
-                className="flex-1 px-3 py-2 rounded border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Add item..."
+                className="flex-1 px-2.5 py-1.5 text-sm rounded-md border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
               <button
                 onClick={addChangelogItem}
                 disabled={!changelogInput.trim()}
-                className="px-3 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded font-medium transition-colors"
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white text-xs rounded-md font-semibold transition-colors active:scale-95"
               >
                 Add
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-1">Press Enter or click Add</p>
           </div>
           {changelog.length > 0 && (
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium text-gray-700">Added Items ({changelog.length})</p>
-              <div className="space-y-1.5 max-h-64 overflow-y-auto scrollbar-thin">
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-gray-700">Added ({changelog.length})</p>
+              <div className="space-y-1 max-h-24 overflow-y-auto scrollbar-thin">
                 {changelog.map((item, index) => (
                   <div
                     key={index}
-                    className="flex items-start justify-between gap-2 p-2.5 rounded bg-gray-100 group"
+                    className="flex items-center gap-1.5 p-1.5 rounded-md bg-blue-50 border border-blue-100"
                   >
-                    <span className="text-gray-900 text-sm flex-1">• {item}</span>
+                    <span className="flex-1 text-xs text-gray-800">{item}</span>
                     <button
                       onClick={() => removeChangelogItem(index)}
-                      className="text-red-500 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                      title="Remove"
+                      className="shrink-0 w-5 h-5 flex items-center justify-center rounded bg-red-500/10 hover:bg-red-500/20 text-red-600 transition-all active:scale-90"
+                      aria-label="Remove item"
                     >
-                      ✕
+                      <X className="w-3 h-3" />
                     </button>
                   </div>
                 ))}
               </div>
             </div>
           )}
+          <button
+            onClick={handleSave}
+            disabled={isSaveDisabled()}
+            className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white text-sm rounded-md font-semibold transition-all active:scale-[0.98]"
+          >
+            {saving ? "Saving..." : "Save Version"}
+          </button>
         </div>
-        <button
-          onClick={saveVersion}
-          disabled={isSaveDisabled()}
-          className="w-full px-6 py-2.5 mt-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded font-semibold transition-colors shrink-0"
-          title={
-            !version.trim()
-              ? "Enter version number"
-              : changelog.length === 0
-              ? "Add at least one changelog item"
-              : versionExists
-              ? "This version already exists"
-              : "Save version"
-          }
-        >
-          {saving ? "Saving..." : "Save Version"}
-        </button>
       </div>
-      <div className="flex flex-col h-full overflow-hidden">
-        <div className="flex items-center justify-between mb-3 shrink-0">
-          <h2 className="text-base font-bold text-gray-900">Version History</h2>
-          <span className="text-xs text-gray-500 font-medium">
-            {history.length} version{history.length !== 1 ? "s" : ""}
+      <div className="flex-1 w-full px-3 py-2 overflow-y-auto scrollbar-thin bg-gray-50/50">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-sm font-semibold text-gray-900">Version History</h2>
+          <span className="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
+            {history.length}
           </span>
         </div>
-        <div className="flex-1 overflow-y-auto space-y-2 scrollbar-thin">
-          {history.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full bg-gray-50 rounded p-8">
-              <div className="text-4xl mb-3">📝</div>
-              <p className="text-gray-500 font-medium">No versions yet</p>
-              <p className="text-xs text-gray-400 mt-1">Create your first version</p>
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="flex flex-col items-center gap-2">
+              <div className="animate-spin rounded-full h-7 w-7 border-2 border-blue-500 border-t-transparent"></div>
+              <p className="text-xs text-gray-600">Loading...</p>
             </div>
-          ) : (
-            history.map((item) => (
-              <div
-                key={item.id}
-                className="p-3 rounded bg-gray-50 border border-gray-200 hover:bg-gray-100 hover:dark:bg-white/10 transition-colors"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-bold text-base text-gray-900">{item.version}</span>
+          </div>
+        ) : history.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <div className="w-12 h-12 rounded-lg bg-gray-200 flex items-center justify-center mb-2">
+              <span className="text-2xl">📋</span>
+            </div>
+            <p className="text-xs font-semibold text-gray-700 mb-0.5">No version history yet</p>
+            <p className="text-xs text-gray-500">Add your first version above</p>
+          </div>
+        ) : (
+          <div className="space-y-2 pb-2">
+            {history.map((item) => (
+              <div key={item.id} className="p-2.5 rounded-md bg-white border border-gray-200">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="font-semibold text-sm text-blue-600">{item.version}</span>
                   <span className="text-xs text-gray-500">
                     {item.createdAt.toLocaleDateString("en-US", {
                       month: "short",
@@ -351,17 +334,21 @@ export default function VersionNotesManager() {
                     })}
                   </span>
                 </div>
-                <div className="space-y-0.5">
+                <div className="space-y-1">
                   {item.changelog.map((change, idx) => (
-                    <p key={idx} className="text-sm text-gray-600">
-                      • {change}
-                    </p>
+                    <div
+                      key={idx}
+                      className="flex items-start gap-1.5 text-xs text-gray-700 leading-relaxed"
+                    >
+                      <span className="text-blue-500 text-xs">•</span>
+                      <span className="flex-1">{change}</span>
+                    </div>
                   ))}
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

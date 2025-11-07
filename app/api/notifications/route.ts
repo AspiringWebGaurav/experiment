@@ -21,27 +21,20 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get("userId");
 
     if (!userId) {
-      return NextResponse.json(
-        { error: "userId is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "userId is required" }, { status: 400 });
     }
 
     const notificationsRef = collection(db, "notifications");
-    const q = query(
-      notificationsRef,
-      where("userId", "==", userId),
-      orderBy("createdAt", "desc")
-    );
+    const q = query(notificationsRef, where("userId", "==", userId));
 
     const snapshot = await getDocs(q);
-    const notifications = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt:
-        doc.data().createdAt?.toDate?.()?.toISOString() ||
-        new Date().toISOString(),
-    }));
+    const notifications = snapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+      }))
+      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return NextResponse.json({ notifications }, { status: 200 });
   } catch (error: any) {
@@ -107,19 +100,12 @@ export async function PATCH(request: NextRequest) {
     const { notificationId, userId, action } = body;
 
     if (!userId) {
-      return NextResponse.json(
-        { error: "userId is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "userId is required" }, { status: 400 });
     }
 
     if (action === "mark-all-read") {
       const notificationsRef = collection(db, "notifications");
-      const q = query(
-        notificationsRef,
-        where("userId", "==", userId),
-        where("read", "==", false)
-      );
+      const q = query(notificationsRef, where("userId", "==", userId), where("read", "==", false));
 
       const snapshot = await getDocs(q);
       const batch = writeBatch(db);
@@ -170,10 +156,7 @@ export async function DELETE(request: NextRequest) {
     const { notificationId, userId, action } = body;
 
     if (!userId) {
-      return NextResponse.json(
-        { error: "userId is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "userId is required" }, { status: 400 });
     }
 
     if (action === "clear-all") {
@@ -196,19 +179,13 @@ export async function DELETE(request: NextRequest) {
     }
 
     if (!notificationId) {
-      return NextResponse.json(
-        { error: "notificationId is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "notificationId is required" }, { status: 400 });
     }
 
     const notificationRef = doc(db, "notifications", notificationId);
     await deleteDoc(notificationRef);
 
-    return NextResponse.json(
-      { success: true, message: "Notification deleted" },
-      { status: 200 }
-    );
+    return NextResponse.json({ success: true, message: "Notification deleted" }, { status: 200 });
   } catch (error: any) {
     console.error("Error deleting notification:", error);
     return NextResponse.json(
