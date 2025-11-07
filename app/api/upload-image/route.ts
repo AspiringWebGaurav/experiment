@@ -14,8 +14,14 @@ export async function POST(request: NextRequest) {
     const base64 = formData.get("base64") as string | null;
     const folder = (formData.get("folder") as string) || "images";
 
-    // Validate folder
-    if (folder !== "images" && folder !== "icons") {
+    // Validate folder - allow testimonials subfolder paths
+    const validFolders = [
+      "images",
+      "icons",
+      "testimonials/avatars",
+      "testimonials/logos",
+    ];
+    if (!validFolders.includes(folder)) {
       return NextResponse.json(
         { success: false, error: "Invalid folder specified" },
         { status: 400 }

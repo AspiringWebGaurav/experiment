@@ -62,6 +62,11 @@ export default function ProjectManager() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>(
+    {}
+  );
+  const [deleteProgress, setDeleteProgress] = useState<number>(0);
+  const [deletingImage, setDeletingImage] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [tempUrl, setTempUrl] = useState("");
   const [showIconPicker, setShowIconPicker] = useState(false);
@@ -83,6 +88,33 @@ export default function ProjectManager() {
       delete newErrors[field];
       return newErrors;
     });
+  };
+
+  /**
+   * Delete image from Firebase Storage
+   */
+  const deleteImageFromCloud = async (imageUrl: string) => {
+    try {
+      const response = await fetch("/api/delete-image", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url: imageUrl }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        console.log(
+          "✅ Image deleted from cloud:",
+          data.deletedPath || imageUrl
+        );
+      }
+    } catch (error) {
+      console.error("Failed to delete image from cloud:", error);
+      // Don't show error to user as this is cleanup
+    }
   };
 
   /**
@@ -160,8 +192,22 @@ export default function ProjectManager() {
     if (!file) return;
 
     setUploading({ ...uploading, mainImage: true });
+    setUploadProgress({ ...uploadProgress, mainImage: 0 });
+
+    // Simulate progress for UX
+    const progressInterval = setInterval(() => {
+      setUploadProgress((prev) => ({
+        ...prev,
+        mainImage: Math.min((prev.mainImage || 0) + 10, 90),
+      }));
+    }, 200);
 
     try {
+      // Delete old image if it exists
+      if (formData.img && formData.img.includes("storage.googleapis.com")) {
+        await deleteImageFromCloud(formData.img);
+      }
+
       const formDataToSend = new FormData();
       formDataToSend.append("file", file);
       formDataToSend.append("folder", "images");
@@ -173,15 +219,24 @@ export default function ProjectManager() {
 
       const data = await response.json();
 
+      clearInterval(progressInterval);
+      setUploadProgress({ ...uploadProgress, mainImage: 100 });
+
       if (data.success) {
         handleFieldChange("img", data.url);
         toast.success("Image uploaded successfully!");
+        setTimeout(() => {
+          setUploadProgress({ ...uploadProgress, mainImage: 0 });
+        }, 1000);
       } else {
         toast.error(data.error || "Upload failed");
+        setUploadProgress({ ...uploadProgress, mainImage: 0 });
       }
     } catch (error) {
+      clearInterval(progressInterval);
       toast.error("Failed to upload image");
       console.error("Upload error:", error);
+      setUploadProgress({ ...uploadProgress, mainImage: 0 });
     } finally {
       setUploading({ ...uploading, mainImage: false });
     }
@@ -196,6 +251,11 @@ export default function ProjectManager() {
     setUploading({ ...uploading, mainImage: true });
 
     try {
+      // Delete old image if it exists
+      if (formData.img && formData.img.includes("storage.googleapis.com")) {
+        await deleteImageFromCloud(formData.img);
+      }
+
       const formDataToSend = new FormData();
       formDataToSend.append("url", tempUrl);
       formDataToSend.append("folder", "images");
@@ -277,17 +337,83 @@ export default function ProjectManager() {
   /**
    * Remove image from gallery
    */
-  const removeGalleryImage = (index: number) => {
+  const removeGalleryImage = async (index: number) => {
     const currentImages = formData.images || [];
+    const imageToDelete = currentImages[index];
+
+    setDeletingImage(true);
+    setDeleteProgress(0);
+
+    // Progress animation
+    const progressInterval = setInterval(() => {
+      setDeleteProgress((prev) => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return 90;
+        }
+        return prev + 15;
+      });
+    }, 100);
+
+    // Delete from cloud if it's a Storage URL
+    if (imageToDelete && imageToDelete.includes("storage.googleapis.com")) {
+      await deleteImageFromCloud(imageToDelete);
+    }
+
+    clearInterval(progressInterval);
+    setDeleteProgress(100);
+
     const newImages = currentImages.filter((_, i) => i !== index);
     handleFieldChange("images", newImages);
 
     // Update main img if it was removed
-    if (formData.img === currentImages[index]) {
+    if (formData.img === imageToDelete) {
       handleFieldChange("img", newImages[0] || "");
     }
 
-    toast.success("Image removed");
+    toast.success("Image removed from gallery and cloud");
+
+    setTimeout(() => {
+      setDeleteProgress(0);
+      setDeletingImage(false);
+    }, 500);
+  };
+
+  /**
+   * Remove main project image
+   */
+  const removeMainImage = async () => {
+    const imageToDelete = formData.img;
+
+    setDeletingImage(true);
+    setDeleteProgress(0);
+
+    // Progress animation
+    const progressInterval = setInterval(() => {
+      setDeleteProgress((prev) => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return 90;
+        }
+        return prev + 15;
+      });
+    }, 100);
+
+    // Delete from cloud if it's a Storage URL
+    if (imageToDelete && imageToDelete.includes("storage.googleapis.com")) {
+      await deleteImageFromCloud(imageToDelete);
+    }
+
+    clearInterval(progressInterval);
+    setDeleteProgress(100);
+
+    handleFieldChange("img", "");
+    toast.success("Main image removed from project and cloud");
+
+    setTimeout(() => {
+      setDeleteProgress(0);
+      setDeletingImage(false);
+    }, 500);
   };
 
   /**
@@ -315,6 +441,13 @@ export default function ProjectManager() {
       setUploading({ ...uploading, [`icon_${index}`]: true });
 
       try {
+        // Delete old icon if it exists and is from Storage
+        const currentIcons = formData.iconLists || [];
+        const oldIcon = currentIcons[index];
+        if (oldIcon && oldIcon.includes("storage.googleapis.com")) {
+          await deleteImageFromCloud(oldIcon);
+        }
+
         const formDataToSend = new FormData();
         formDataToSend.append("file", file);
         formDataToSend.append("folder", "icons");
@@ -563,6 +696,38 @@ export default function ProjectManager() {
       return;
     }
 
+    // Collect all images to delete from cloud
+    const imagesToDelete = [];
+
+    // Main project image
+    if (project.img && project.img.includes("storage.googleapis.com")) {
+      imagesToDelete.push(project.img);
+    }
+
+    // All gallery images
+    if (project.images && Array.isArray(project.images)) {
+      project.images.forEach((imgUrl) => {
+        if (imgUrl && imgUrl.includes("storage.googleapis.com")) {
+          imagesToDelete.push(imgUrl);
+        }
+      });
+    }
+
+    // All icon images
+    if (project.iconLists && Array.isArray(project.iconLists)) {
+      project.iconLists.forEach((iconUrl) => {
+        if (iconUrl && iconUrl.includes("storage.googleapis.com")) {
+          imagesToDelete.push(iconUrl);
+        }
+      });
+    }
+
+    // Delete all images from cloud in parallel
+    if (imagesToDelete.length > 0) {
+      await Promise.all(imagesToDelete.map((url) => deleteImageFromCloud(url)));
+      toast.success(`Deleted ${imagesToDelete.length} image(s) from cloud`);
+    }
+
     await deleteProject(id);
   };
 
@@ -710,13 +875,18 @@ export default function ProjectManager() {
                     }}
                   />
                   <button
-                    onClick={() => handleFieldChange("img", "")}
-                    className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shadow-lg"
+                    onClick={removeMainImage}
+                    disabled={deletingImage}
+                    className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed"
                     type="button"
                     title="Remove image"
                     aria-label="Remove image"
                   >
-                    <X className="w-4 h-4" />
+                    {deletingImage ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <X className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
               )}

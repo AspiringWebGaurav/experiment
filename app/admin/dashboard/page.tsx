@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import Navbar from "@/components/admin/Navbar";
 import Footer from "@/components/admin/Footer";
 import Breadcrumb from "@/components/admin/Breadcrumb";
@@ -10,20 +10,30 @@ import HorizontalScrollPanel, {
 } from "@/components/admin/HorizontalScrollPanel";
 import HorizontalScrollPanelMobile from "@/components/admin/mobile/HorizontalScrollPanel";
 import ProjectManager from "@/components/admin/ProjectManager";
+import TestimonialManager from "@/components/admin/TestimonialManager";
 
 export default function DashboardPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(true);
-  const [activeSection, setActiveSection] = useState("projects");
   const [isMobile, setIsMobile] = useState(false);
 
-  // Panel options - Single option for now, more can be added in future
+  // Panel options
   const panelOptions: PanelOption[] = [
     { id: "projects", label: "Projects", icon: "📁" },
+    { id: "testimonials", label: "Testimonials", icon: "💬" },
     // Future options can be added here
     // { id: "new-category", label: "New Category", icon: "🎯" },
   ];
+
+  // Get active section from URL params, default to "projects"
+  const tabParam = searchParams.get("tab");
+  const validTab = panelOptions.find((opt) => opt.id === tabParam);
+  const [activeSection, setActiveSection] = useState(
+    validTab ? tabParam : "projects"
+  );
 
   // Detect mobile screen size
   useEffect(() => {
@@ -36,10 +46,29 @@ export default function DashboardPage() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  // Sync active section with URL params on mount and when URL changes
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    const validTab = panelOptions.find((opt) => opt.id === tabParam);
+
+    if (validTab) {
+      setActiveSection(tabParam!);
+    } else if (!tabParam) {
+      // If no tab param, set default to projects in URL
+      router.replace(`${pathname}?tab=projects`, { scroll: false });
+    }
+  }, [searchParams, pathname, router]);
+
   useEffect(() => {
     setLoading(false);
     setAuthorized(true);
   }, []);
+
+  // Handle tab change and update URL
+  const handleTabChange = (newTab: string) => {
+    setActiveSection(newTab);
+    router.push(`${pathname}?tab=${newTab}`, { scroll: false });
+  };
 
   if (loading) {
     return null;
@@ -71,21 +100,22 @@ export default function DashboardPage() {
           <HorizontalScrollPanelMobile
             options={panelOptions}
             activeOption={activeSection}
-            onOptionChange={setActiveSection}
+            onOptionChange={handleTabChange}
           />
         ) : (
           <HorizontalScrollPanel
             options={panelOptions}
             activeOption={activeSection}
-            onOptionChange={setActiveSection}
+            onOptionChange={handleTabChange}
           />
         )}
       </div>
 
-      {/* Main Content - Scrollable Projects Section */}
+      {/* Main Content - Scrollable Section */}
       <main className="flex-1 overflow-y-auto bg-gray-50 scrollbar-hide">
         <div className="max-w-7xl mx-auto p-6">
-          <ProjectManager />
+          {activeSection === "projects" && <ProjectManager />}
+          {activeSection === "testimonials" && <TestimonialManager />}
         </div>
       </main>
 
