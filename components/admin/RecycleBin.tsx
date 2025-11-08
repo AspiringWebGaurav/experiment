@@ -19,8 +19,11 @@ import {
   ArrowUpDown,
   ArrowLeft,
   Home,
+  Mail,
+  MessageSquare,
 } from "lucide-react";
 import { RecycleBinItemSource, RecycleBinFilters } from "@/types/recycleBin";
+import { toast } from "sonner";
 
 export default function RecycleBin() {
   const router = useRouter();
@@ -44,6 +47,14 @@ export default function RecycleBin() {
   );
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
+  const [deletingItem, setDeletingItem] = useState<string | null>(null);
+  const [restoringItem, setRestoringItem] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Prevent hydration mismatch by waiting for client-side mount
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Keyboard navigation - Escape to go back
   useEffect(() => {
@@ -73,33 +84,104 @@ export default function RecycleBin() {
     recycleBinId: string,
     source: RecycleBinItemSource
   ) => {
-    const restoredData = await restoreItem(recycleBinId);
+    try {
+      setRestoringItem(recycleBinId);
+      const restoredData = await restoreItem(recycleBinId);
 
-    if (!restoredData) return;
+      if (!restoredData) {
+        toast.error("Failed to restore item");
+        return;
+      }
 
-    // Handle restoration based on source
-    switch (source) {
-      case "todo":
-        const todos = JSON.parse(
-          localStorage.getItem(`todos_${restoredData.userId}`) || "[]"
-        );
-        todos.push(restoredData);
-        localStorage.setItem(
-          `todos_${restoredData.userId}`,
-          JSON.stringify(todos)
-        );
-        break;
+      // Handle restoration based on source
+      switch (source) {
+        case "todo":
+          try {
+            const todos = JSON.parse(
+              localStorage.getItem(`todos_${restoredData.userId}`) || "[]"
+            );
+            todos.push(restoredData);
+            localStorage.setItem(
+              `todos_${restoredData.userId}`,
+              JSON.stringify(todos)
+            );
+          } catch (error) {
+            console.error("Error restoring todo to localStorage:", error);
+          }
+          break;
 
-      case "timesheet":
-      case "time-tracker":
-        // For timesheet and time-tracker, we need to restore via API
-        // This would require implementing restore endpoints
-        console.log("Restore via API for:", source, restoredData);
-        break;
+        case "timesheet":
+        case "time-tracker":
+          // For timesheet and time-tracker, restore via API if needed
+          console.log("Restore via API for:", source, restoredData);
+          break;
 
-      case "notification":
-        // Restore notification if needed
-        break;
+        case "notification":
+          // Restore notification if needed
+          console.log("Notification restored:", restoredData);
+          break;
+
+        case "project":
+        case "testimonial":
+        case "workExperience":
+        case "contactSubmission":
+          // These are managed by Context APIs and Firestore
+          // Restoration handled automatically in RecycleBinContext
+          console.log("Firestore item restored - Context will sync:", source);
+          break;
+
+        default:
+          console.warn("Unknown source type:", source);
+      }
+
+      toast.success(`${getSourceLabel(source)} restored successfully`);
+    } catch (error) {
+      console.error("Error in handleRestore:", error);
+      toast.error("Failed to restore item");
+    } finally {
+      setRestoringItem(null);
+    }
+  };
+
+  const handlePermanentDelete = async (recycleBinId: string) => {
+    if (
+      !confirm("Permanently delete this item? This action cannot be undone!")
+    ) {
+      return;
+    }
+
+    try {
+      setDeletingItem(recycleBinId);
+      await permanentlyDelete(recycleBinId);
+      toast.success("Item permanently deleted");
+    } catch (error) {
+      console.error("Error deleting item:", error);
+      toast.error("Failed to delete item");
+    } finally {
+      setDeletingItem(null);
+    }
+  };
+
+  const handleEmptyBin = async () => {
+    if (items.length === 0) {
+      toast.info("Recycle bin is already empty");
+      return;
+    }
+
+    if (
+      !confirm(
+        `Permanently delete all ${items.length} items? This action cannot be undone!`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await permanentlyDeleteAll();
+      toast.success("Recycle bin emptied successfully");
+    } catch (error) {
+      console.error("Error emptying recycle bin:", error);
+      toast.error("Failed to empty recycle bin");
     }
   };
 
@@ -113,6 +195,16 @@ export default function RecycleBin() {
         return <Timer className="w-4 h-4" />;
       case "notification":
         return <Bell className="w-4 h-4" />;
+      case "project":
+        return <CheckCircle2 className="w-4 h-4" />;
+      case "testimonial":
+        return <MessageSquare className="w-4 h-4" />;
+      case "workExperience":
+        return <Clock className="w-4 h-4" />;
+      case "contactSubmission":
+        return <Mail className="w-4 h-4" />;
+      default:
+        return <AlertTriangle className="w-4 h-4" />;
     }
   };
 
@@ -126,6 +218,16 @@ export default function RecycleBin() {
         return "Time Log";
       case "notification":
         return "Notification";
+      case "project":
+        return "Project";
+      case "testimonial":
+        return "Testimonial";
+      case "workExperience":
+        return "Work Experience";
+      case "contactSubmission":
+        return "Contact Submission";
+      default:
+        return "Unknown";
     }
   };
 
@@ -139,6 +241,16 @@ export default function RecycleBin() {
         return "bg-purple-100 text-purple-800";
       case "notification":
         return "bg-yellow-100 text-yellow-800";
+      case "project":
+        return "bg-orange-100 text-orange-800";
+      case "testimonial":
+        return "bg-pink-100 text-pink-800";
+      case "workExperience":
+        return "bg-indigo-100 text-indigo-800";
+      case "contactSubmission":
+        return "bg-teal-100 text-teal-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -197,16 +309,14 @@ export default function RecycleBin() {
         <div className="mb-6">
           <div className="flex items-center gap-2 text-sm">
             <button
-              onClick={() => router.push("/dashboard")}
+              onClick={() => router.push("/admin/dashboard")}
               className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
               <Home className="w-4 h-4" />
               <span>Dashboard</span>
             </button>
             <span className="text-gray-400">/</span>
-            <span className="text-gray-900 font-medium">
-              Recycle Bin
-            </span>
+            <span className="text-gray-900 font-medium">Recycle Bin</span>
           </div>
         </div>
 
@@ -235,7 +345,7 @@ export default function RecycleBin() {
               </div>
             </div>
             <button
-              onClick={() => router.push("/dashboard")}
+              onClick={() => router.push("/admin/dashboard")}
               className="hidden md:flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Home className="w-4 h-4" />
@@ -244,49 +354,59 @@ export default function RecycleBin() {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="text-2xl font-bold text-gray-900">
-              {stats.total}
+        {/* Stats Cards - Admin Panel Items */}
+        {isMounted ? (
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+            <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-gray-500">
+              <div className="text-2xl font-bold text-gray-900">
+                {stats.total}
+              </div>
+              <div className="text-sm text-gray-600">Total Items</div>
             </div>
-            <div className="text-sm text-gray-600">
-              Total Items
+            <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-orange-500">
+              <div className="text-2xl font-bold text-orange-600">
+                {stats.projects}
+              </div>
+              <div className="text-sm text-gray-600">Projects</div>
             </div>
-          </div>
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="text-2xl font-bold text-blue-600">
-              {stats.todos}
+            <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-pink-500">
+              <div className="text-2xl font-bold text-pink-600">
+                {stats.testimonials}
+              </div>
+              <div className="text-sm text-gray-600">Testimonials</div>
             </div>
-            <div className="text-sm text-gray-600">
-              Todos
+            <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-indigo-500">
+              <div className="text-2xl font-bold text-indigo-600">
+                {stats.workExperiences}
+              </div>
+              <div className="text-sm text-gray-600">Work Exp</div>
             </div>
-          </div>
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="text-2xl font-bold text-green-600">
-              {stats.timesheets}
+            <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-teal-500">
+              <div className="text-2xl font-bold text-teal-600">
+                {stats.contactSubmissions}
+              </div>
+              <div className="text-sm text-gray-600">Contact Forms</div>
             </div>
-            <div className="text-sm text-gray-600">
-              Timesheets
-            </div>
-          </div>
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="text-2xl font-bold text-purple-600">
-              {stats.timeLogs}
-            </div>
-            <div className="text-sm text-gray-600">
-              Time Logs
-            </div>
-          </div>
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="text-2xl font-bold text-red-600">
-              {stats.expiringWithin24Hours}
-            </div>
-            <div className="text-sm text-gray-600">
-              Expiring Soon
+            <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-red-500">
+              <div className="text-2xl font-bold text-red-600">
+                {stats.expiringWithin24Hours}
+              </div>
+              <div className="text-sm text-gray-600">Expiring Soon</div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+            {[...Array(6)].map((_, i) => (
+              <div
+                key={i}
+                className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-gray-300 animate-pulse"
+              >
+                <div className="h-8 bg-gray-200 rounded mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-20"></div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Filters */}
         <div className="bg-white rounded-lg p-4 shadow-sm mb-6">
@@ -339,8 +459,8 @@ export default function RecycleBin() {
 
             {/* Delete All Button */}
             <button
-              onClick={permanentlyDeleteAll}
-              disabled={items.length === 0}
+              onClick={handleEmptyBin}
+              disabled={loading || items.length === 0}
               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <Trash2 className="w-4 h-4" />
@@ -414,9 +534,7 @@ export default function RecycleBin() {
                           </span>
                           <span
                             className={
-                              expiringSoon
-                                ? "text-red-600 font-semibold"
-                                : ""
+                              expiringSoon ? "text-red-600 font-semibold" : ""
                             }
                           >
                             {expiringSoon && (
@@ -430,10 +548,23 @@ export default function RecycleBin() {
                         <div className="flex flex-wrap gap-2">
                           <button
                             onClick={() => handleRestore(item.id, item.source)}
-                            className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-1 text-sm"
+                            disabled={
+                              restoringItem === item.id ||
+                              deletingItem === item.id
+                            }
+                            className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm"
                           >
-                            <RotateCcw className="w-3 h-3" />
-                            Restore
+                            {restoringItem === item.id ? (
+                              <>
+                                <Clock className="w-3 h-3 animate-spin" />
+                                Restoring...
+                              </>
+                            ) : (
+                              <>
+                                <RotateCcw className="w-3 h-3" />
+                                Restore
+                              </>
+                            )}
                           </button>
 
                           <button
@@ -443,7 +574,11 @@ export default function RecycleBin() {
                                 item.expiryDays === 15 ? 30 : 15
                               )
                             }
-                            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-1 text-sm"
+                            disabled={
+                              restoringItem === item.id ||
+                              deletingItem === item.id
+                            }
+                            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm"
                           >
                             <Clock className="w-3 h-3" />
                             {item.expiryDays === 15
@@ -452,18 +587,35 @@ export default function RecycleBin() {
                           </button>
 
                           <button
-                            onClick={() => permanentlyDelete(item.id)}
-                            className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-1 text-sm"
+                            onClick={() => handlePermanentDelete(item.id)}
+                            disabled={
+                              restoringItem === item.id ||
+                              deletingItem === item.id
+                            }
+                            className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm"
                           >
-                            <Trash2 className="w-3 h-3" />
-                            Delete Forever
+                            {deletingItem === item.id ? (
+                              <>
+                                <Clock className="w-3 h-3 animate-spin" />
+                                Deleting...
+                              </>
+                            ) : (
+                              <>
+                                <Trash2 className="w-3 h-3" />
+                                Delete Forever
+                              </>
+                            )}
                           </button>
 
                           <button
                             onClick={() =>
                               setExpandedItem(isExpanded ? null : item.id)
                             }
-                            className="px-3 py-1.5 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300 flex items-center gap-1 text-sm"
+                            disabled={
+                              restoringItem === item.id ||
+                              deletingItem === item.id
+                            }
+                            className="px-3 py-1.5 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm"
                           >
                             {isExpanded ? "Hide" : "View"} Details
                           </button>

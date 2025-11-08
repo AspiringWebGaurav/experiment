@@ -8,7 +8,16 @@ export type NotificationType =
   | "error"
   | "success"
   | "info"
-  | "warning";
+  | "warning"
+  | "project"
+  | "testimonial"
+  | "workExperience"
+  | "contactSubmission"
+  | "recycleBin"
+  | "delete"
+  | "restore"
+  | "create"
+  | "update";
 
 export interface Notification {
   id: string;
@@ -16,9 +25,14 @@ export interface Notification {
   type: NotificationType;
   title: string;
   message: string;
+  description?: string; // Optional description for toast
   read: boolean;
   createdAt: string;
   data?: Record<string, any>;
+  action?: {
+    label: string;
+    url: string;
+  };
 }
 
 export interface CreateNotificationInput {
@@ -26,5 +40,10 @@ export interface CreateNotificationInput {
   type: NotificationType;
   title: string;
   message: string;
+  description?: string;
   data?: Record<string, any>;
+  action?: {
+    label: string;
+    url: string;
+  };
 }

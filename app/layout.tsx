@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "./provider";
 import { ChunkErrorBoundary } from "@/components/ChunkErrorBoundary";
+import { ContactSubmissionProvider } from "@/contexts/ContactSubmissionContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,7 +35,7 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            {children}
+            <ContactSubmissionProvider>{children}</ContactSubmissionProvider>
           </ThemeProvider>
         </ChunkErrorBoundary>
       </body>

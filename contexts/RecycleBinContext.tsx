@@ -8,13 +8,20 @@ import React, {
   useCallback,
   ReactNode,
 } from "react";
-import { toast } from "sonner";
 import {
   RecycleBinItem,
   RecycleBinItemSource,
   RecycleBinStats,
   RecycleBinFilters,
 } from "@/types/recycleBin";
+import {
+  notifyError,
+  notifyItemMovedToRecycleBin,
+  notifyItemRestored,
+  notifyItemDeleted,
+  notifySuccess,
+  notifyInfo,
+} from "@/lib/notifications";
 
 interface RecycleBinContextType {
   items: RecycleBinItem[];
@@ -64,6 +71,9 @@ export const RecycleBinProvider: React.FC<RecycleBinProviderProps> = ({
     timeLogs: 0,
     notifications: 0,
     projects: 0,
+    testimonials: 0,
+    workExperiences: 0,
+    contactSubmissions: 0,
     expiringWithin24Hours: 0,
   });
 
@@ -72,11 +82,62 @@ export const RecycleBinProvider: React.FC<RecycleBinProviderProps> = ({
     setCurrentUserId("portfolio-user");
   }, []);
 
-  // Load items from localStorage
+  // Load items from Firestore with real-time listener
   useEffect(() => {
-    if (currentUserId) {
-      loadItems();
-    }
+    if (!currentUserId) return;
+
+    setLoading(true);
+
+    const setupListener = async () => {
+      try {
+        const { db } = await import("@/lib/firebase");
+        const { collection, query, orderBy, onSnapshot } = await import(
+          "firebase/firestore"
+        );
+
+        const recycleBinRef = collection(db, "recycleBin");
+        const q = query(recycleBinRef, orderBy("deletedAt", "desc"));
+
+        const unsubscribe = onSnapshot(
+          q,
+          (snapshot) => {
+            const recycleBinItems: RecycleBinItem[] = [];
+            snapshot.forEach((doc) => {
+              const data = doc.data();
+              recycleBinItems.push({
+                id: doc.id,
+                ...data,
+                deletedAt:
+                  data.deletedAt?.toDate?.()?.toISOString() || data.deletedAt,
+                expiryDate:
+                  data.expiryDate?.toDate?.()?.toISOString() || data.expiryDate,
+              } as RecycleBinItem);
+            });
+            setItems(recycleBinItems);
+            setLoading(false);
+          },
+          (error) => {
+            console.error("Error loading recycle bin from Firestore:", error);
+            setItems([]);
+            setLoading(false);
+          }
+        );
+
+        return unsubscribe;
+      } catch (error) {
+        console.error("Error setting up Firestore listener:", error);
+        setLoading(false);
+      }
+    };
+
+    let unsubscribe: (() => void) | undefined;
+    setupListener().then((unsub) => {
+      unsubscribe = unsub;
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [currentUserId]);
 
   // Update stats when items change
@@ -84,33 +145,88 @@ export const RecycleBinProvider: React.FC<RecycleBinProviderProps> = ({
     updateStats();
   }, [items]);
 
-  const loadItems = () => {
-    if (!currentUserId) return;
+  // Helper function to clean data for Firestore (remove undefined values)
+  const cleanFirestoreData = (data: any): any => {
+    if (data === null || data === undefined) {
+      return null;
+    }
 
-    const stored = localStorage.getItem(`recycleBin_${currentUserId}`);
-    if (stored) {
-      try {
-        const parsedItems = JSON.parse(stored);
-        setItems(parsedItems);
-      } catch (error) {
-        console.error("Error loading recycle bin:", error);
-        setItems([]);
+    if (Array.isArray(data)) {
+      return data.map(cleanFirestoreData).filter((item) => item !== null);
+    }
+
+    if (typeof data === "object" && data !== null) {
+      // Handle Date objects - convert to ISO string
+      if (data instanceof Date) {
+        return data.toISOString();
       }
+
+      // Handle Firestore Timestamp objects - convert to ISO string
+      if (data.toDate && typeof data.toDate === "function") {
+        try {
+          return data.toDate().toISOString();
+        } catch (e) {
+          return null;
+        }
+      }
+
+      const cleaned: any = {};
+      Object.keys(data).forEach((key) => {
+        const value = data[key];
+        // Skip undefined values completely
+        if (value !== undefined) {
+          const cleanedValue = cleanFirestoreData(value);
+          // Only add non-null values
+          if (cleanedValue !== null || value === null) {
+            cleaned[key] = cleanedValue;
+          }
+        }
+      });
+      return cleaned;
+    }
+
+    return data;
+  };
+
+  const saveItemToFirestore = async (item: RecycleBinItem): Promise<void> => {
+    try {
+      const { db } = await import("@/lib/firebase");
+      const { collection, doc, setDoc, Timestamp } = await import(
+        "firebase/firestore"
+      );
+
+      const recycleBinRef = collection(db, "recycleBin");
+
+      // Clean the data to remove undefined values
+      const cleanedData = cleanFirestoreData(item.data);
+
+      // Convert dates to Firestore Timestamps
+      const firestoreItem = {
+        ...item,
+        data: cleanedData,
+        deletedAt: Timestamp.fromDate(new Date(item.deletedAt)),
+        expiryDate: Timestamp.fromDate(new Date(item.expiryDate)),
+      };
+
+      await setDoc(doc(recycleBinRef, item.id), firestoreItem);
+    } catch (error) {
+      console.error("Error saving to Firestore:", error);
+      throw error;
     }
   };
 
-  const saveItems = useCallback(
-    (updatedItems: RecycleBinItem[]) => {
-      if (!currentUserId) return;
+  const deleteItemFromFirestore = async (itemId: string): Promise<void> => {
+    try {
+      const { db } = await import("@/lib/firebase");
+      const { collection, doc, deleteDoc } = await import("firebase/firestore");
 
-      localStorage.setItem(
-        `recycleBin_${currentUserId}`,
-        JSON.stringify(updatedItems)
-      );
-      setItems(updatedItems);
-    },
-    [currentUserId]
-  );
+      const recycleBinRef = collection(db, "recycleBin");
+      await deleteDoc(doc(recycleBinRef, itemId));
+    } catch (error) {
+      console.error("Error deleting from Firestore:", error);
+      throw error;
+    }
+  };
 
   const updateStats = () => {
     const now = new Date().getTime();
@@ -124,6 +240,13 @@ export const RecycleBinProvider: React.FC<RecycleBinProviderProps> = ({
       notifications: items.filter((item) => item.source === "notification")
         .length,
       projects: items.filter((item) => item.source === "project").length,
+      testimonials: items.filter((item) => item.source === "testimonial")
+        .length,
+      workExperiences: items.filter((item) => item.source === "workExperience")
+        .length,
+      contactSubmissions: items.filter(
+        (item) => item.source === "contactSubmission"
+      ).length,
       expiringWithin24Hours: items.filter(
         (item) => new Date(item.expiryDate).getTime() <= oneDayFromNow
       ).length,
@@ -139,7 +262,7 @@ export const RecycleBinProvider: React.FC<RecycleBinProviderProps> = ({
       originalId: string
     ): Promise<void> => {
       if (!currentUserId) {
-        toast.error("User not authenticated");
+        notifyError("User not authenticated");
         return;
       }
 
@@ -159,61 +282,132 @@ export const RecycleBinProvider: React.FC<RecycleBinProviderProps> = ({
           deletedBy: currentUserId,
         };
 
-        const updatedItems = [...items, recycleBinItem];
-        saveItems(updatedItems);
+        await saveItemToFirestore(recycleBinItem);
 
-        toast.success(`Item moved to Recycle Bin (expires in 15 days)`, {
-          description: "You can restore it or extend the expiry period.",
-        });
+        notifyItemMovedToRecycleBin(source, 15);
       } catch (error) {
         console.error("Error moving to recycle bin:", error);
-        toast.error("Failed to move item to Recycle Bin");
+        notifyError("Failed to move item to Recycle Bin");
       }
     },
-    [currentUserId, items, saveItems]
+    [currentUserId]
   );
 
   const restoreItem = useCallback(
     async (recycleBinId: string): Promise<any> => {
       const item = items.find((i) => i.id === recycleBinId);
       if (!item) {
-        toast.error("Item not found");
+        notifyError("Item not found");
         return null;
       }
 
       try {
-        // Remove from recycle bin
-        const updatedItems = items.filter((i) => i.id !== recycleBinId);
-        saveItems(updatedItems);
+        // For Firestore-backed items, restore to Firestore
+        if (
+          item.source === "project" ||
+          item.source === "testimonial" ||
+          item.source === "workExperience" ||
+          item.source === "contactSubmission"
+        ) {
+          const collectionName = getCollectionName(item.source);
+          if (collectionName) {
+            // Import Firestore
+            const { db } = await import("@/lib/firebase");
+            const { collection, doc, setDoc, Timestamp } = await import(
+              "firebase/firestore"
+            );
 
-        toast.success("Item restored successfully");
+            // Helper to convert ISO date strings back to Timestamps
+            const convertDatesToTimestamps = (obj: any): any => {
+              if (obj === null || obj === undefined) return obj;
+
+              if (Array.isArray(obj)) {
+                return obj.map(convertDatesToTimestamps);
+              }
+
+              if (typeof obj === "object") {
+                const converted: any = {};
+                for (const key in obj) {
+                  const value = obj[key];
+                  // Check if it's an ISO date string
+                  if (
+                    typeof value === "string" &&
+                    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)
+                  ) {
+                    try {
+                      converted[key] = Timestamp.fromDate(new Date(value));
+                    } catch (e) {
+                      converted[key] = value;
+                    }
+                  } else if (typeof value === "object" && value !== null) {
+                    converted[key] = convertDatesToTimestamps(value);
+                  } else if (value !== undefined) {
+                    converted[key] = value;
+                  }
+                }
+                return converted;
+              }
+
+              return obj;
+            };
+
+            // Clean and convert the data
+            const cleanData = cleanFirestoreData(item.data);
+            const restoredData = convertDatesToTimestamps(cleanData);
+
+            // Restore to Firestore with proper timestamps
+            await setDoc(doc(collection(db, collectionName), item.originalId), {
+              ...restoredData,
+              updatedAt: Timestamp.now(),
+            });
+          }
+        }
+
+        // Remove from recycle bin in Firestore
+        await deleteItemFromFirestore(recycleBinId);
+
+        notifyItemRestored(item.source);
         return item.data; // Return the data so caller can restore it
       } catch (error) {
         console.error("Error restoring item:", error);
-        toast.error("Failed to restore item");
+        notifyError("Failed to restore item");
         return null;
       }
     },
-    [items, saveItems]
+    [items]
   );
+
+  const getCollectionName = (source: RecycleBinItemSource): string | null => {
+    switch (source) {
+      case "project":
+        return "projects";
+      case "testimonial":
+        return "testimonials";
+      case "workExperience":
+        return "workExperiences";
+      case "contactSubmission":
+        return "contactSubmissions";
+      default:
+        return null;
+    }
+  };
 
   const permanentlyDelete = useCallback(
     async (recycleBinId: string): Promise<void> => {
       try {
-        const updatedItems = items.filter((i) => i.id !== recycleBinId);
-        saveItems(updatedItems);
-        toast.success("Item permanently deleted");
+        await deleteItemFromFirestore(recycleBinId);
+        notifyItemDeleted("Item");
       } catch (error) {
         console.error("Error permanently deleting:", error);
-        toast.error("Failed to delete item");
+        notifyError("Failed to delete item");
       }
     },
-    [items, saveItems]
+    []
   );
 
   const permanentlyDeleteAll = useCallback(async (): Promise<void> => {
     if (!currentUserId) {
-      toast.error("User not authenticated");
+      notifyError("User not authenticated");
       return;
     }
 
@@ -222,45 +416,50 @@ export const RecycleBinProvider: React.FC<RecycleBinProviderProps> = ({
     }
 
     try {
-      saveItems([]);
-      toast.success("All items permanently deleted");
-      // Refresh the page to show updated UI
-      window.location.reload();
+      // Delete all items from Firestore
+      const deletePromises = items.map((item) =>
+        deleteItemFromFirestore(item.id)
+      );
+      await Promise.all(deletePromises);
+
+      notifySuccess("All items permanently deleted");
     } catch (error) {
       console.error("Error deleting all items:", error);
-      toast.error("Failed to delete all items");
+      notifyError("Failed to delete all items");
     }
-  }, [currentUserId, saveItems]);
+  }, [currentUserId, items]);
 
   const extendExpiry = useCallback(
     async (recycleBinId: string, days: 15 | 30): Promise<void> => {
       try {
-        const updatedItems = items.map((item) => {
-          if (item.id === recycleBinId) {
-            const now = new Date();
-            const newExpiryDate = new Date(
-              now.getTime() + days * 24 * 60 * 60 * 1000
-            );
-            return {
-              ...item,
-              expiryDate: newExpiryDate.toISOString(),
-              expiryDays: days,
-            };
-          }
-          return item;
-        });
+        const item = items.find((i) => i.id === recycleBinId);
+        if (!item) {
+          notifyError("Item not found");
+          return;
+        }
 
-        saveItems(updatedItems);
-        toast.success(`Expiry extended to ${days} days`);
+        const now = new Date();
+        const newExpiryDate = new Date(
+          now.getTime() + days * 24 * 60 * 60 * 1000
+        );
+
+        const updatedItem = {
+          ...item,
+          expiryDate: newExpiryDate.toISOString(),
+          expiryDays: days,
+        };
+
+        await saveItemToFirestore(updatedItem);
+        notifySuccess(`Expiry extended to ${days} days`);
       } catch (error) {
         console.error("Error extending expiry:", error);
-        toast.error("Failed to extend expiry");
+        notifyError("Failed to extend expiry");
       }
     },
-    [items, saveItems]
+    [items]
   );
 
-  const autoCleanupExpiredItems = useCallback(() => {
+  const autoCleanupExpiredItems = useCallback(async () => {
     if (!currentUserId) return;
 
     const now = new Date().getTime();
@@ -269,20 +468,21 @@ export const RecycleBinProvider: React.FC<RecycleBinProviderProps> = ({
     );
 
     if (expiredItems.length > 0) {
-      const updatedItems = items.filter(
-        (item) => new Date(item.expiryDate).getTime() > now
-      );
-      saveItems(updatedItems);
+      try {
+        const deletePromises = expiredItems.map((item) =>
+          deleteItemFromFirestore(item.id)
+        );
+        await Promise.all(deletePromises);
 
-      toast.info(
-        `${expiredItems.length} expired item(s) automatically deleted`,
-        {
-          description:
-            "Items in Recycle Bin are automatically removed after expiry.",
-        }
-      );
+        notifyInfo(
+          `${expiredItems.length} expired item(s) automatically deleted`,
+          "Items in Recycle Bin are automatically removed after expiry."
+        );
+      } catch (error) {
+        console.error("Error auto-cleaning expired items:", error);
+      }
     }
-  }, [currentUserId, items, saveItems]);
+  }, [currentUserId, items]);
 
   // Auto-cleanup expired items
   useEffect(() => {
@@ -346,8 +546,9 @@ export const RecycleBinProvider: React.FC<RecycleBinProviderProps> = ({
   );
 
   const refreshItems = useCallback(() => {
-    loadItems();
-  }, [currentUserId]);
+    // Items are auto-refreshed via Firestore real-time listener
+    // No manual refresh needed
+  }, []);
 
   const value: RecycleBinContextType = {
     items,

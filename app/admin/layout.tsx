@@ -8,6 +8,7 @@ import { RecycleBinProvider } from "@/contexts/RecycleBinContext";
 import { ProjectProvider } from "@/contexts/ProjectContext";
 import { TestimonialProvider } from "@/contexts/TestimonialContext";
 import { WorkExperienceProvider } from "@/contexts/WorkExperienceContext";
+import { ContactSubmissionProvider } from "@/contexts/ContactSubmissionContext";
 import AppLoader from "@/components/admin/AppLoader";
 import { SessionMonitor } from "@/components/SessionMonitor";
 
@@ -44,10 +45,12 @@ export default function AdminLayout({
             <ProjectProvider>
               <TestimonialProvider>
                 <WorkExperienceProvider>
-                  <ToasterProvider />
-                  <AppLoader />
-                  <SessionMonitor />
-                  {children}
+                  <ContactSubmissionProvider>
+                    <ToasterProvider />
+                    <AppLoader />
+                    <SessionMonitor />
+                    {children}
+                  </ContactSubmissionProvider>
                 </WorkExperienceProvider>
               </TestimonialProvider>
             </ProjectProvider>

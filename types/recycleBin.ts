@@ -6,7 +6,8 @@ export type RecycleBinItemSource =
   | "notification"
   | "project"
   | "testimonial"
-  | "workExperience";
+  | "workExperience"
+  | "contactSubmission";
 
 export interface RecycleBinItem {
   id: string; // Unique ID for the recycle bin entry
@@ -29,6 +30,7 @@ export interface RecycleBinStats {
   projects: number;
   testimonials: number;
   workExperiences: number;
+  contactSubmissions: number;
   expiringWithin24Hours: number;
 }
 

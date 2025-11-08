@@ -54,8 +54,10 @@ export async function signInWithGoogle(): Promise<UserCredential> {
       throw new Error("Failed to create session");
     }
 
-    // Create login notification
-    await createAuthNotification("login", user);
+    // Create login notification (non-blocking)
+    createAuthNotification("login", user).catch((err) =>
+      console.warn("Failed to create login notification:", err)
+    );
 
     return cred;
   } catch (err: unknown) {
@@ -95,7 +97,11 @@ export async function signIn(
       throw new Error("Failed to create session");
     }
 
-    await createAuthNotification("login", user);
+    // Create login notification (non-blocking)
+    createAuthNotification("login", user).catch((err) =>
+      console.warn("Failed to create login notification:", err)
+    );
+
     return cred;
   } catch (err: unknown) {
     const message = (err as Error).message || "Authentication failed.";
@@ -106,8 +112,12 @@ export async function signIn(
 
 export async function signOut(): Promise<void> {
   const user = auth.currentUser;
+
+  // Create logout notification (non-blocking, before sign out)
   if (user) {
-    await createAuthNotification("logout", user);
+    createAuthNotification("logout", user).catch((err) =>
+      console.warn("Failed to create logout notification:", err)
+    );
   }
 
   // Destroy server-side session

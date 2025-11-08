@@ -11,7 +11,8 @@ import { getDatabase } from "firebase/database";
 const firebaseConfig = {
   apiKey: "AIzaSyCMKuKgoWq7s_b_798pJq9QgGbHgUEy9kM",
   authDomain: "gaurav-portfolio-improved.firebaseapp.com",
-  databaseURL: "https://gaurav-portfolio-improved-default-rtdb.firebaseio.com",
+  databaseURL:
+    "https://gaurav-portfolio-improved-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "gaurav-portfolio-improved",
   storageBucket: "gaurav-portfolio-improved.firebasestorage.app",
   messagingSenderId: "761696179429",
@@ -42,6 +43,7 @@ function initApp() {
 }
 
 const app = initApp();
+export { app };
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const rtdb = getDatabase(app);

@@ -12,6 +12,7 @@ import HorizontalScrollPanelMobile from "@/components/admin/mobile/HorizontalScr
 import ProjectManager from "@/components/admin/ProjectManager";
 import TestimonialManager from "@/components/admin/TestimonialManager";
 import WorkExperienceManager from "@/components/admin/WorkExperienceManager";
+import ContactSubmissionManager from "@/components/admin/ContactSubmissionManager";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -26,6 +27,7 @@ export default function DashboardPage() {
     { id: "projects", label: "Projects", icon: "📁" },
     { id: "testimonials", label: "Testimonials", icon: "💬" },
     { id: "work-experience", label: "Work Experience", icon: "💼" },
+    { id: "contact-submissions", label: "Contact Submissions", icon: "📧" },
     // Future options can be added here
     // { id: "new-category", label: "New Category", icon: "🎯" },
   ];
@@ -119,6 +121,9 @@ export default function DashboardPage() {
           {activeSection === "projects" && <ProjectManager />}
           {activeSection === "testimonials" && <TestimonialManager />}
           {activeSection === "work-experience" && <WorkExperienceManager />}
+          {activeSection === "contact-submissions" && (
+            <ContactSubmissionManager />
+          )}
         </div>
       </main>
 

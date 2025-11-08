@@ -53,27 +53,97 @@ export function NotificationProvider({
     return () => unsubscribe();
   }, []);
 
-  // Fetch notifications when user changes
+  // Fetch notifications when user changes - inline to avoid circular dependency
   useEffect(() => {
-    if (userId) {
-      refreshNotifications();
-    } else {
+    if (!userId) {
       setNotifications([]);
       setUnreadCount(0);
+      setLoading(false);
+      return;
     }
+
+    let isMounted = true;
+    const fetchNotifications = async () => {
+      console.log("Starting notification refresh");
+      setLoading(true);
+      try {
+        console.log(`Fetching notifications from portfolio-user`);
+        const response = await fetch(
+          `/api/notifications?userId=portfolio-user`,
+          {
+            cache: "no-store",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          console.warn(
+            `Could not fetch notifications:`,
+            response.status,
+            response.statusText
+          );
+          if (isMounted) {
+            setNotifications([]);
+            setUnreadCount(0);
+          }
+          return;
+        }
+
+        const data = await response.json();
+        console.log(
+          `Received ${data.notifications?.length || 0} notifications`
+        );
+        const notifs = data.notifications || [];
+
+        if (isMounted) {
+          setNotifications(notifs);
+          setUnreadCount(notifs.filter((n: Notification) => !n.read).length);
+        }
+      } catch (error) {
+        console.error("Error fetching notifications:", error);
+        if (isMounted) {
+          setNotifications([]);
+          setUnreadCount(0);
+        }
+      } finally {
+        if (isMounted) {
+          console.log(
+            "Notification refresh complete, setting loading to false"
+          );
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchNotifications();
+    return () => {
+      isMounted = false;
+    };
   }, [userId]);
 
+  // Separate refreshNotifications function for manual refresh
   const refreshNotifications = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      console.log("No userId, skipping notification refresh");
+      setLoading(false);
+      return;
+    }
 
+    console.log("Manual notification refresh triggered");
     setLoading(true);
     try {
-      const response = await fetch(`/api/notifications?userId=${userId}`);
+      const response = await fetch(`/api/notifications?userId=portfolio-user`, {
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
       if (!response.ok) {
-        // Handle error gracefully - just log and set empty notifications
         console.warn(
-          "Could not fetch notifications:",
+          `Could not fetch notifications:`,
           response.status,
           response.statusText
         );
@@ -83,16 +153,17 @@ export function NotificationProvider({
       }
 
       const data = await response.json();
+      console.log(`Received ${data.notifications?.length || 0} notifications`);
       const notifs = data.notifications || [];
 
       setNotifications(notifs);
       setUnreadCount(notifs.filter((n: Notification) => !n.read).length);
     } catch (error) {
-      // Handle any network or parsing errors gracefully
       console.error("Error fetching notifications:", error);
       setNotifications([]);
       setUnreadCount(0);
     } finally {
+      console.log("Notification refresh complete, setting loading to false");
       setLoading(false);
     }
   }, [userId]);
@@ -136,7 +207,7 @@ export function NotificationProvider({
         const response = await fetch("/api/notifications", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ notificationId, userId, action: "mark-read" }),
+          body: JSON.stringify({ notificationId, userId }),
         });
 
         if (!response.ok) {
@@ -163,7 +234,7 @@ export function NotificationProvider({
       const response = await fetch("/api/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, action: "mark-all-read" }),
+        body: JSON.stringify({ userId, markAllAsRead: true }),
       });
 
       if (!response.ok) {
@@ -189,11 +260,12 @@ export function NotificationProvider({
       if (!userId) return;
 
       try {
-        const response = await fetch("/api/notifications", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ notificationId, userId }),
-        });
+        const response = await fetch(
+          `/api/notifications?userId=${userId}&notificationId=${notificationId}`,
+          {
+            method: "DELETE",
+          }
+        );
 
         if (!response.ok) {
           console.warn(
@@ -218,11 +290,12 @@ export function NotificationProvider({
     if (!userId) return;
 
     try {
-      const response = await fetch("/api/notifications", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, action: "clear-all" }),
-      });
+      const response = await fetch(
+        `/api/notifications?userId=${userId}&deleteAll=true`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (!response.ok) {
         console.warn(

@@ -1,14 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import { FaLocationArrow } from "react-icons/fa6";
 import Image from "next/image";
 
 import { socialMedia } from "@/data";
 import MagicButton from "./ui/MagicButton";
+import ContactFormModal from "./ContactFormModal";
 
 const Footer = () => {
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+
   const handleAdminClick = () => {
     window.open("/admin/dashboard", "_blank");
+  };
+
+  const handleContactClick = () => {
+    setIsContactModalOpen(true);
   };
 
   return (
@@ -24,14 +32,19 @@ const Footer = () => {
           Reach out to me today and let&apos;s discuss how I can help you
           achieve your goals.
         </p>
-        <a href="mailto:gauravpatil5737@gmail.com">
-          <MagicButton
-            title="Let's get in touch"
-            icon={<FaLocationArrow />}
-            position="right"
-          />
-        </a>
+        <MagicButton
+          title="Let's get in touch"
+          icon={<FaLocationArrow />}
+          position="right"
+          handleClick={handleContactClick}
+        />
       </div>
+
+      {/* Contact Form Modal */}
+      <ContactFormModal
+        isOpen={isContactModalOpen}
+        onClose={() => setIsContactModalOpen(false)}
+      />
       <div className="flex mt-16 md:flex-row flex-col justify-between items-center py-6">
         <p className="md:text-base text-sm md:font-normal font-light flex items-center">
           Copyright © 2025 Gaurav Patil
