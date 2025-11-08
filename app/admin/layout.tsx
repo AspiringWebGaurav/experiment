@@ -7,7 +7,9 @@ import { LoadingProvider } from "@/contexts/LoadingContext";
 import { RecycleBinProvider } from "@/contexts/RecycleBinContext";
 import { ProjectProvider } from "@/contexts/ProjectContext";
 import { TestimonialProvider } from "@/contexts/TestimonialContext";
+import { WorkExperienceProvider } from "@/contexts/WorkExperienceContext";
 import AppLoader from "@/components/admin/AppLoader";
+import { SessionMonitor } from "@/components/SessionMonitor";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,9 +43,12 @@ export default function AdminLayout({
           <RecycleBinProvider>
             <ProjectProvider>
               <TestimonialProvider>
-                <ToasterProvider />
-                <AppLoader />
-                {children}
+                <WorkExperienceProvider>
+                  <ToasterProvider />
+                  <AppLoader />
+                  <SessionMonitor />
+                  {children}
+                </WorkExperienceProvider>
               </TestimonialProvider>
             </ProjectProvider>
           </RecycleBinProvider>

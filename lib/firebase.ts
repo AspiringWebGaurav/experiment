@@ -1,6 +1,11 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from "firebase/firestore";
 import { getDatabase } from "firebase/database";
 
 const firebaseConfig = {
@@ -17,7 +22,18 @@ const firebaseConfig = {
 function initApp() {
   try {
     if (!getApps().length) {
-      return initializeApp(firebaseConfig);
+      const app = initializeApp(firebaseConfig);
+
+      // Initialize Firestore with new cache API (no deprecation warning)
+      if (typeof window !== "undefined") {
+        initializeFirestore(app, {
+          localCache: persistentLocalCache({
+            tabManager: persistentMultipleTabManager(),
+          }),
+        });
+      }
+
+      return app;
     }
     return getApp();
   } catch (err) {
@@ -29,14 +45,3 @@ const app = initApp();
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const rtdb = getDatabase(app);
-
-// Enable offline persistence (only in browser environment)
-if (typeof window !== "undefined") {
-  enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === "failed-precondition") {
-      console.warn("Firestore persistence failed: Multiple tabs open");
-    } else if (err.code === "unimplemented") {
-      console.warn("Firestore persistence not supported in this browser");
-    }
-  });
-}

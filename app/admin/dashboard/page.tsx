@@ -11,6 +11,7 @@ import HorizontalScrollPanel, {
 import HorizontalScrollPanelMobile from "@/components/admin/mobile/HorizontalScrollPanel";
 import ProjectManager from "@/components/admin/ProjectManager";
 import TestimonialManager from "@/components/admin/TestimonialManager";
+import WorkExperienceManager from "@/components/admin/WorkExperienceManager";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -24,6 +25,7 @@ export default function DashboardPage() {
   const panelOptions: PanelOption[] = [
     { id: "projects", label: "Projects", icon: "📁" },
     { id: "testimonials", label: "Testimonials", icon: "💬" },
+    { id: "work-experience", label: "Work Experience", icon: "💼" },
     // Future options can be added here
     // { id: "new-category", label: "New Category", icon: "🎯" },
   ];
@@ -116,6 +118,7 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto p-6">
           {activeSection === "projects" && <ProjectManager />}
           {activeSection === "testimonials" && <TestimonialManager />}
+          {activeSection === "work-experience" && <WorkExperienceManager />}
         </div>
       </main>
 

@@ -9,10 +9,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "release": "standard-version"
+    "release": "standard-version",
+    "generate:cron-secret": "node scripts/generate-cron-secret.mjs"
   },
   "dependencies": {
-    "@netlify/next": "^1.4.9",
     "@opentelemetry/api": "^1.9.0",
     "@react-three/drei": "^10.0.8",
     "@react-three/fiber": "^9.0.0-alpha.8",
@@ -43,6 +43,7 @@
     "@types/react-dom": "^19",
     "@types/react-lottie": "^1.2.10",
     "autoprefixer": "^10.4.21",
+    "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "15.3.2",
     "firebase-admin": "^13.6.0",

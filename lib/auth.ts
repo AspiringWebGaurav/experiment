@@ -42,6 +42,18 @@ export async function signInWithGoogle(): Promise<UserCredential> {
       throw new Error("Unauthorized user.");
     }
 
+    // Get ID token and create server-side session
+    const idToken = await user.getIdToken();
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to create session");
+    }
+
     // Create login notification
     await createAuthNotification("login", user);
 
@@ -70,6 +82,19 @@ export async function signIn(
       toast.error("Access restricted. Please contact the owner.");
       throw new Error("Access restricted.");
     }
+
+    // Get ID token and create server-side session
+    const idToken = await user.getIdToken();
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to create session");
+    }
+
     await createAuthNotification("login", user);
     return cred;
   } catch (err: unknown) {
@@ -84,6 +109,14 @@ export async function signOut(): Promise<void> {
   if (user) {
     await createAuthNotification("logout", user);
   }
+
+  // Destroy server-side session
+  try {
+    await fetch("/api/auth/logout", { method: "POST" });
+  } catch (error) {
+    console.error("Failed to destroy server session:", error);
+  }
+
   await fbSignOut(auth);
 }
 

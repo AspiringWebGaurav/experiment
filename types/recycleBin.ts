@@ -4,7 +4,9 @@ export type RecycleBinItemSource =
   | "timesheet"
   | "time-tracker"
   | "notification"
-  | "project";
+  | "project"
+  | "testimonial"
+  | "workExperience";
 
 export interface RecycleBinItem {
   id: string; // Unique ID for the recycle bin entry
@@ -25,6 +27,8 @@ export interface RecycleBinStats {
   timeLogs: number;
   notifications: number;
   projects: number;
+  testimonials: number;
+  workExperiences: number;
   expiringWithin24Hours: number;
 }
 
